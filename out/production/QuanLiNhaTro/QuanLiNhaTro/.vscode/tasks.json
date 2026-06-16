@@ -1,0 +1,15 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Run QuanLiNhaTro",
+            "type": "shell",
+            "command": "C:\\Users\\nthai\\IdeaProjects\\Java\\run_QuanLiNhaTro.bat",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        }
+    ]
+}
