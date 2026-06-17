@@ -54,7 +54,7 @@ public class TongHopHoaDonDAO {
     // ─────────────────────────────────────────────────────────────────────────
     private static final String SQL_CHITIET =
         "SELECT " +
-        "    hd.MaHoaDon, hop.MaPhong, hd.ThangNam, hd.TongTien, hd.TrangThai, " +
+        "    hd.MaHoaDon, hop.MaHopDong, hop.MaPhong, hd.ThangNam, hd.TongTien, hd.TrangThai, " +
         "    hd.TienPhong, hd.TienDien, hd.TienNuoc, hd.TienDichVuKhac, " +
         "    hop.NgayBatDau, " +
         "    p.TenPhong, " +
@@ -111,14 +111,22 @@ public class TongHopHoaDonDAO {
                 String thangNam = rs.getString("ThangNam");
                 int soNgayTrongThang = 30;
                 int soNgayO = soNgayTrongThang;
+                LocalDate ngayBD = null;
+                List<Object[]> nguoiOGhep = new ArrayList<>();
                 try {
                     int month = Integer.parseInt(thangNam.substring(0, 2));
                     int year  = Integer.parseInt(thangNam.substring(3));
                     soNgayTrongThang = YearMonth.of(year, month).lengthOfMonth();
                     soNgayO = soNgayTrongThang;
+                    
+                    LocalDate firstDay = LocalDate.of(year, month, 1);
+                    LocalDate lastDay = firstDay.withDayOfMonth(soNgayTrongThang);
+                    int maHopDong = rs.getInt("MaHopDong");
+                    nguoiOGhep = layNguoiOGhepTrongThang(conn, maHopDong, firstDay, lastDay);
+
                     java.sql.Date sqlNgayBD = rs.getDate("NgayBatDau");
                     if (sqlNgayBD != null) {
-                        LocalDate ngayBD = sqlNgayBD.toLocalDate();
+                        ngayBD = sqlNgayBD.toLocalDate();
                         if (ngayBD.getMonthValue() == month && ngayBD.getYear() == year
                                 && ngayBD.getDayOfMonth() > 1) {
                             soNgayO = soNgayTrongThang - ngayBD.getDayOfMonth() + 1;
@@ -139,6 +147,8 @@ public class TongHopHoaDonDAO {
                     dichVuKhac, tongDV,
                     soNguoi,
                     soNgayO, soNgayTrongThang,
+                    ngayBD,
+                    nguoiOGhep,
                     rs.getLong("TongTien"),
                     rs.getString("TrangThai")
                 );
@@ -167,6 +177,33 @@ public class TongHopHoaDonDAO {
                     });
                 }
             }
+        }
+        return list;
+    }
+
+    private static List<Object[]> layNguoiOGhepTrongThang(Connection conn, int maHopDong,
+                                                          LocalDate firstDay, LocalDate lastDay) {
+        String sql =
+            "SELECT NgayVao, NgayDi FROM ChiTiet_HopDong_NguoiOGhep " +
+            "WHERE MaHopDong = ? " +
+            "  AND (NgayVao IS NULL OR NgayVao <= ?) " +
+            "  AND (NgayDi  IS NULL OR NgayDi  >= ?)";
+        List<Object[]> list = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, maHopDong);
+            ps.setDate(2, java.sql.Date.valueOf(lastDay));
+            ps.setDate(3, java.sql.Date.valueOf(firstDay));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    java.sql.Date sqlVao = rs.getDate("NgayVao");
+                    java.sql.Date sqlDi  = rs.getDate("NgayDi");
+                    LocalDate ngayVao = sqlVao != null ? sqlVao.toLocalDate() : null;
+                    LocalDate ngayDi  = sqlDi  != null ? sqlDi.toLocalDate()  : null;
+                    list.add(new Object[]{ngayVao, ngayDi});
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         return list;
     }

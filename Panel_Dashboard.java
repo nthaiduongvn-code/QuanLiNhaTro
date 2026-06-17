@@ -101,10 +101,10 @@ public class Panel_Dashboard extends JPanel {
         // ── Hàng 1: 4 stat cards (compact, không giãn) ──
         JPanel row1 = new JPanel(new GridLayout(1, 4, 12, 0));
         row1.setOpaque(false);
-        row1.add(statCard("Tổng số phòng",      null,               valTotalPhong, Theme.INFO,     Theme.INFO_BG,    1));
-        row1.add(statCard("Khách thuê",          null,               valKhachThue,  Theme.TEAL_600, Theme.TEAL_50,    2));
-        row1.add(statCard("Hợp đồng hoạt động", null,               valHopDong,    Theme.WARNING,  Theme.WARNING_BG, 3));
-        row1.add(statCard("Cần phải thu",        null,               valCanThu,     Theme.DANGER,   Theme.DANGER_BG,  4));
+        row1.add(statCard("Tổng số phòng",      null,   valTotalPhong, Theme.INFO,     Theme.INFO_BG,    1));
+        row1.add(statCard("Khách thuê",          null,  valKhachThue,  Theme.TEAL_600, Theme.TEAL_50,    2));
+        row1.add(statCard("Hợp đồng hoạt động", null,   valHopDong,    Theme.WARNING,  Theme.WARNING_BG, 3));
+        row1.add(statCard("Cần phải thu",        null,  valCanThu,     Theme.DANGER,   Theme.DANGER_BG,  4));
 
         gbc.gridy   = 0;
         gbc.weighty = 0.0;
@@ -114,6 +114,7 @@ public class Panel_Dashboard extends JPanel {
         // ── Hàng 2: chart cột + 2 donut ──
         JPanel rowCharts = new JPanel(new GridLayout(1, 2, 14, 0));
         rowCharts.setOpaque(false);
+        rowCharts.setPreferredSize(new Dimension(0, 0)); // Ép GridBagLayout chia không gian theo weight, tránh bị JScrollPane của table chèn ép
 
         JPanel chartCard = card();
         chartCard.setLayout(new BorderLayout(0, 8));
@@ -136,10 +137,11 @@ public class Panel_Dashboard extends JPanel {
         // ── Hàng 3: 2 bảng nằm ngang ──
         JPanel rowTables = new JPanel(new GridLayout(1, 2, 14, 0));
         rowTables.setOpaque(false);
+        rowTables.setPreferredSize(new Dimension(0, 0)); // Ép GridBagLayout chia không gian theo weight, tránh bị JScrollPane của table chèn ép
 
         JPanel hetHanCard = card();
         hetHanCard.setLayout(new BorderLayout(0, 8));
-        hetHanCard.add(sectionLabel("⏰  Hợp đồng sắp hết hạn (≤ 30 ngày)"), BorderLayout.NORTH);
+        hetHanCard.add(sectionLabel("- Hợp đồng sắp hết hạn (≤ 30 ngày) : "), BorderLayout.NORTH);
         Theme.styleTable(tableHetHan);
         tableHetHan.getColumnModel().getColumn(0).setMinWidth(0);
         tableHetHan.getColumnModel().getColumn(0).setMaxWidth(0);
@@ -162,7 +164,7 @@ public class Panel_Dashboard extends JPanel {
 
         JPanel chuaTTCard = card();
         chuaTTCard.setLayout(new BorderLayout(0, 8));
-        chuaTTCard.add(sectionLabel("💳  Phòng chưa thanh toán"), BorderLayout.NORTH);
+        chuaTTCard.add(sectionLabel("- Phòng chưa thanh toán : "), BorderLayout.NORTH);
         Theme.styleTable(tableChuaTT);
         tableChuaTT.getColumnModel().getColumn(2).setCellRenderer(new DefaultTableCellRenderer() {
             @Override public Component getTableCellRendererComponent(
@@ -413,8 +415,12 @@ public class Panel_Dashboard extends JPanel {
             g2.setColor(Theme.SLATE_200);
             g2.drawLine(padL, padT, padL, padT + cH);
 
-            int gap  = 10;
-            int barW = (cW - gap * (n + 1)) / n;
+            int gap = 14;
+            int optimalBarW = (cW - gap * 7) / 6;
+            int barW = Math.min(optimalBarW, 60);
+
+            int totalContentWidth = n * barW + (n - 1) * gap;
+            int startX = padL + (cW - totalContentWidth) / 2;
             int base = padT + cH;
 
             for (int i = 0; i < n; i++) {
@@ -423,7 +429,7 @@ public class Panel_Dashboard extends JPanel {
                 int hD = (int)(td * cH / (double) max);
                 int hV = (int)(tv * cH / (double) max);
                 int th = hP + hD + hV;
-                int x  = padL + gap + i * (barW + gap);
+                int x  = startX + i * (barW + gap);
 
                 if (th > 0) {
                     Shape cl = g2.getClip();

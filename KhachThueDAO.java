@@ -12,25 +12,32 @@ public class KhachThueDAO {
      * excludeHopDongId > 0: bỏ qua HĐ đó khi kiểm tra — dùng khi sửa HĐ hiện tại.
      */
     public static ArrayList<ThongTinKhachThue> getKhachChuaCoHopDong(int excludeHopDongId) {
-        String ex = excludeHopDongId > 0 ? " AND hd.MaHopDong != ?" : "";
+        // excludeHopDongId: loại trừ HĐ này khỏi CẢ HAI điều kiện (chủ HĐ + người ở ghép)
+        // → khi đang xem HĐ X, khách ghép của HĐ X không bị lọc ra, tránh bug không thêm được người ghép thứ 2
+        String exHD  = excludeHopDongId > 0 ? " AND hd.MaHopDong != ?"  : "";
+        String exNOG = excludeHopDongId > 0 ? " AND nog.MaHopDong != ?" : "";
         String sql = "SELECT k.MaKhachThue, k.HoTen, k.SoCCCD, k.SoDienThoai, k.Email, " +
                      "k.GioiTinh, k.NgaySinh, k.QueQuan, k.BienSoXe, k.GhiChu " +
                      "FROM KhachThue k " +
                      "WHERE NOT EXISTS (" +
                      "  SELECT 1 FROM HopDong hd " +
                      "  WHERE hd.MaKhachThue = k.MaKhachThue " +
-                     "  AND hd.TrangThai IN (N'Còn hiệu lực', N'Chờ nhận phòng')" + ex + ") " +
+                     "  AND hd.TrangThai IN (N'Còn hiệu lực', N'Chờ nhận phòng')" + exHD + ") " +
                      "AND NOT EXISTS (" +
                      "  SELECT 1 FROM ChiTiet_HopDong_NguoiOGhep nog " +
                      "  JOIN HopDong hd ON nog.MaHopDong = hd.MaHopDong " +
                      "  WHERE nog.MaKhachThue = k.MaKhachThue " +
                      "  AND nog.NgayDi IS NULL " +
-                     "  AND hd.TrangThai IN (N'Còn hiệu lực', N'Chờ nhận phòng')" + ex + ") " +
+                     "  AND hd.TrangThai IN (N'Còn hiệu lực', N'Chờ nhận phòng')" + exNOG + ") " +
                      "ORDER BY k.HoTen";
         ArrayList<ThongTinKhachThue> ds = new ArrayList<>();
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            if (excludeHopDongId > 0) { ps.setInt(1, excludeHopDongId); ps.setInt(2, excludeHopDongId); }
+            if (excludeHopDongId > 0) {
+                // set 2 tham số: 1 cho NOT EXISTS chủ HĐ, 1 cho NOT EXISTS người ghép
+                ps.setInt(1, excludeHopDongId);
+                ps.setInt(2, excludeHopDongId);
+            }
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
                 ds.add(new ThongTinKhachThue(
@@ -200,8 +207,8 @@ public class KhachThueDAO {
 
     /**
      * Khách trang chính: đang thuê / ở ghép (còn HĐ hiệu lực)
-     * HOẶC mới thêm chưa có bất kỳ liên kết HĐ nào → hiển thị "Chờ phòng".
-     * Người từng thuê/ở ghép đã hết hạn → thuộc lịch sử, không hiện ở đây.
+     * HOẶC khách chờ phòng (bao gồm khách mới chưa có HĐ, và khách rời đi khỏi phòng nhưng HĐ phòng đó vẫn còn hiệu lực).
+     * Khách thuộc lịch sử (có HĐ hết hiệu lực và không có HĐ còn hiệu lực) sẽ bị loại khỏi đây.
      */
     public static ArrayList<ThongTinKhachThue> getKhachThueHienTai() {
         String activeCond =
@@ -214,16 +221,26 @@ public class KhachThueDAO {
             "  WHERE nog.MaKhachThue = k.MaKhachThue AND nog.NgayDi IS NULL " +
             "  AND hd.TrangThai IN (N'Còn hiệu lực', N'Chờ nhận phòng')" +
             ")";
-        // Khách mới: chưa có HĐ riêng VÀ chưa từng là người ở ghép bao giờ
-        String newCond =
-            "NOT EXISTS (SELECT 1 FROM HopDong WHERE MaKhachThue = k.MaKhachThue) " +
-            "AND NOT EXISTS (SELECT 1 FROM ChiTiet_HopDong_NguoiOGhep WHERE MaKhachThue = k.MaKhachThue)";
+            
+        String expiredCond = 
+            "EXISTS (" +
+            "  SELECT 1 FROM HopDong hd WHERE hd.MaKhachThue = k.MaKhachThue " +
+            "  AND hd.TrangThai NOT IN (N'Còn hiệu lực', N'Chờ nhận phòng')" +
+            ") OR EXISTS (" +
+            "  SELECT 1 FROM ChiTiet_HopDong_NguoiOGhep nog " +
+            "  JOIN HopDong hd ON nog.MaHopDong = hd.MaHopDong " +
+            "  WHERE nog.MaKhachThue = k.MaKhachThue " +
+            "  AND hd.TrangThai NOT IN (N'Còn hiệu lực', N'Chờ nhận phòng')" +
+            ")";
+
+        String historyCond = "(NOT (" + activeCond + ")) AND (" + expiredCond + ")";
+
         String sql =
             "SELECT k.MaKhachThue, k.HoTen, k.SoCCCD, k.SoDienThoai, k.Email, " +
             "k.GioiTinh, k.NgaySinh, k.QueQuan, k.BienSoXe, k.GhiChu, " +
             "CASE WHEN " + activeCond + " THEN 1 ELSE 0 END AS DangO " +
             "FROM KhachThue k " +
-            "WHERE (" + activeCond + ") OR (" + newCond + ") " +
+            "WHERE NOT (" + historyCond + ") " +
             "ORDER BY k.HoTen";
         ArrayList<ThongTinKhachThue> ds = new ArrayList<>();
         try (Connection conn = DBConnection.getConnection();
@@ -242,26 +259,40 @@ public class KhachThueDAO {
     }
 
     /**
-     * Khách đã di dời: không còn HĐ/ở ghép nào hiệu lực,
-     * nhưng đã từng có HĐ riêng HOẶC đã từng là người ở ghép.
+     * Khách đã di dời (Lịch sử): Không còn HĐ/ở ghép nào hiệu lực,
+     * VÀ có HĐ (làm chủ hoặc ở ghép) đã hết hiệu lực.
      */
     public static ArrayList<ThongTinKhachThue> getKhachThueDaDiDoi() {
-        String sql =
-            "SELECT k.MaKhachThue, k.HoTen, k.SoCCCD, k.SoDienThoai, k.Email, " +
-            "k.GioiTinh, k.NgaySinh, k.QueQuan, k.BienSoXe, k.GhiChu " +
-            "FROM KhachThue k " +
-            "WHERE NOT EXISTS (" +
+        String activeCond =
+            "EXISTS (" +
             "  SELECT 1 FROM HopDong hd WHERE hd.MaKhachThue = k.MaKhachThue " +
             "  AND hd.TrangThai IN (N'Còn hiệu lực', N'Chờ nhận phòng')" +
-            ") AND NOT EXISTS (" +
+            ") OR EXISTS (" +
             "  SELECT 1 FROM ChiTiet_HopDong_NguoiOGhep nog " +
             "  JOIN HopDong hd ON nog.MaHopDong = hd.MaHopDong " +
             "  WHERE nog.MaKhachThue = k.MaKhachThue AND nog.NgayDi IS NULL " +
             "  AND hd.TrangThai IN (N'Còn hiệu lực', N'Chờ nhận phòng')" +
-            ") AND (" +
-            "  EXISTS (SELECT 1 FROM HopDong WHERE MaKhachThue = k.MaKhachThue)" +
-            "  OR EXISTS (SELECT 1 FROM ChiTiet_HopDong_NguoiOGhep WHERE MaKhachThue = k.MaKhachThue)" +
-            ") ORDER BY k.HoTen";
+            ")";
+            
+        String expiredCond = 
+            "EXISTS (" +
+            "  SELECT 1 FROM HopDong hd WHERE hd.MaKhachThue = k.MaKhachThue " +
+            "  AND hd.TrangThai NOT IN (N'Còn hiệu lực', N'Chờ nhận phòng')" +
+            ") OR EXISTS (" +
+            "  SELECT 1 FROM ChiTiet_HopDong_NguoiOGhep nog " +
+            "  JOIN HopDong hd ON nog.MaHopDong = hd.MaHopDong " +
+            "  WHERE nog.MaKhachThue = k.MaKhachThue " +
+            "  AND hd.TrangThai NOT IN (N'Còn hiệu lực', N'Chờ nhận phòng')" +
+            ")";
+
+        String historyCond = "(NOT (" + activeCond + ")) AND (" + expiredCond + ")";
+
+        String sql =
+            "SELECT k.MaKhachThue, k.HoTen, k.SoCCCD, k.SoDienThoai, k.Email, " +
+            "k.GioiTinh, k.NgaySinh, k.QueQuan, k.BienSoXe, k.GhiChu " +
+            "FROM KhachThue k " +
+            "WHERE " + historyCond + " " +
+            "ORDER BY k.HoTen";
         ArrayList<ThongTinKhachThue> ds = new ArrayList<>();
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);

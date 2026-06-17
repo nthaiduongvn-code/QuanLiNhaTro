@@ -49,9 +49,15 @@ public class PdfExporter {
         // Thông tin khách
         int yPos = PAGE_H - 160;
         cs.append("0.290 0.333 0.388 rg\n");
-        cs.append("BT /F2 12 Tf 40 ").append(yPos).append(" Td (Khach hang: ) Tj ET\n");
+        cs.append("BT /F2 12 Tf 40 ").append(yPos).append(" Td (Khach thue: ) Tj ET\n");
         cs.append("0.059 0.090 0.165 rg\n");
         cs.append("BT /F1 12 Tf 130 ").append(yPos).append(" Td (").append(esc(noDau(ct.getHoTenKhach()))).append(") Tj ET\n");
+
+        yPos -= 18;
+        cs.append("0.290 0.333 0.388 rg\n");
+        cs.append("BT /F2 12 Tf 40 ").append(yPos).append(" Td (So nguoi o: ) Tj ET\n");
+        cs.append("0.059 0.090 0.165 rg\n");
+        cs.append("BT /F1 12 Tf 130 ").append(yPos).append(" Td (").append(ct.getSoNguoi()).append(") Tj ET\n");
 
         if (ct.getEmailKhach() != null && !ct.getEmailKhach().isEmpty()) {
             yPos -= 18;
@@ -59,6 +65,27 @@ public class PdfExporter {
             cs.append("BT /F2 12 Tf 40 ").append(yPos).append(" Td (Email: ) Tj ET\n");
             cs.append("0.059 0.090 0.165 rg\n");
             cs.append("BT /F1 12 Tf 130 ").append(yPos).append(" Td (").append(esc(ct.getEmailKhach())).append(") Tj ET\n");
+        }
+        
+        String chuThich = buildChuThichText(ct);
+        if (!chuThich.isEmpty()) {
+            yPos -= 18;
+            String ctNoDau = noDau(chuThich);
+            String[] words = ctNoDau.split(" ");
+            StringBuilder line = new StringBuilder();
+            cs.append("0.937 0.267 0.267 rg\n");
+            for(String w : words) {
+                if (line.length() + w.length() > 90) {
+                    cs.append("BT /F1 9 Tf 40 ").append(yPos).append(" Td (").append(esc(line.toString())).append(") Tj ET\n");
+                    yPos -= 12;
+                    line = new StringBuilder(w).append(" ");
+                } else {
+                    line.append(w).append(" ");
+                }
+            }
+            if (line.length() > 0) {
+                cs.append("BT /F1 9 Tf 40 ").append(yPos).append(" Td (").append(esc(line.toString())).append(") Tj ET\n");
+            }
         }
 
         // Bảng chi tiết
@@ -80,7 +107,16 @@ public class PdfExporter {
 
         // Các hàng
         List<Object[]> rows = new ArrayList<>();
-        rows.add(new Object[]{"Tien phong", ct.getSoNgayO() + "/" + ct.getSoNgayTrongThang() + " ngay", vnd(ct.getTienPhong())});
+        String tienPhongDetail;
+        try {
+            int month = Integer.parseInt(ct.getThangNam().substring(0, 2));
+            tienPhongDetail = (ct.getSoNgayO() == ct.getSoNgayTrongThang()) 
+                            ? "Thang " + month
+                            : ct.getSoNgayO() + "/" + ct.getSoNgayTrongThang() + " ngay";
+        } catch (Exception e) {
+            tienPhongDetail = ct.getSoNgayO() + "/" + ct.getSoNgayTrongThang() + " ngay";
+        }
+        rows.add(new Object[]{"Tien phong", tienPhongDetail, vnd(ct.getTienPhong())});
         rows.add(new Object[]{"Tien dien", buildChiSoDetail(ct.getDienCu(), ct.getDienMoi(), ct.getDonGiaDien(), "kWh"), vnd(ct.getTienDien())});
         rows.add(new Object[]{"Tien nuoc", buildChiSoDetail(ct.getNuocCu(), ct.getNuocMoi(), ct.getDonGiaNuoc(), "m3"), vnd(ct.getTienNuoc())});
 
@@ -93,7 +129,7 @@ public class PdfExporter {
             long   thanhTien = (long) dv[5];
             String detail;
             if (ThongTinDichVu.THEO_NGUOI.equals(cachTinh)) {
-                detail = vnd(donGia) + (donVi.isEmpty() ? "" : "/" + donVi) + " x " + soLuongStr(soLuong) + " nguoi";
+                detail = vnd(donGia) + (donVi.isEmpty() ? "" : "/" + donVi) + " x " + soLuongStr(soLuong);
             } else {
                 detail = donVi.isEmpty() ? "-" : "/ " + donVi;
             }
@@ -266,5 +302,93 @@ public class PdfExporter {
         int luong = moi - cu;
         String base = cu + " -> " + moi + " = " + luong + " " + donVi;
         return donGia > 0 ? base + " x " + vnd(donGia) : base;
+    }
+
+    private static String buildChuThichText(ChiTietHoaDon ct) {
+        if (ct.getNgayBatDauHD() == null) return "";
+        try {
+            int month = Integer.parseInt(ct.getThangNam().substring(0, 2));
+            int year  = Integer.parseInt(ct.getThangNam().substring(3));
+            java.time.LocalDate firstDay = java.time.LocalDate.of(year, month, 1);
+            java.time.LocalDate lastDay = firstDay.withDayOfMonth(ct.getSoNgayTrongThang());
+            
+            boolean khachVaoGiuaThang = (ct.getNgayBatDauHD().getMonthValue() == month 
+                                         && ct.getNgayBatDauHD().getYear() == year 
+                                         && ct.getNgayBatDauHD().getDayOfMonth() > 1);
+            
+            List<Object[]> ghep = ct.getNguoiOGhepTrongThang();
+            if (!khachVaoGiuaThang && (ghep == null || ghep.isEmpty())) {
+                return "";
+            }
+            
+            java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            
+            // BUG FIX 1: Luon tinh khach chinh = 1.0 (giong getEffectiveSoNguoi)
+            // de ghi chu khop voi so nguoi thuc te duoc dung tinh dich vu
+            double totalEffective = 1.0;
+            
+            int nguoiVaoSau = 0;
+            double phatSinhThem = 0;
+            java.time.LocalDate ngayVaoSau = null;
+            
+            int nguoiRoiDi = 0;
+            double thoiGianChuaSuDung = 0;
+            java.time.LocalDate ngayRoiDi = null;
+            
+            if (ghep != null) {
+                for (Object[] row : ghep) {
+                    java.time.LocalDate vao = (java.time.LocalDate) row[0];
+                    java.time.LocalDate di = (java.time.LocalDate) row[1];
+                    
+                    java.time.LocalDate start = vao != null ? vao : firstDay;
+                    java.time.LocalDate end = di != null ? di : lastDay;
+                    if (start.isBefore(firstDay)) start = firstDay;
+                    if (end.isAfter(lastDay)) end = lastDay;
+                    
+                    long days = java.time.temporal.ChronoUnit.DAYS.between(start, end) + 1;
+                    double eff = (double) days / ct.getSoNgayTrongThang();
+                    totalEffective += eff;
+                    
+                    if (vao != null && vao.isAfter(firstDay)) {
+                        nguoiVaoSau++;
+                        phatSinhThem += eff;
+                        if (ngayVaoSau == null || vao.isAfter(ngayVaoSau)) ngayVaoSau = vao;
+                    }
+                    if (di != null && di.isBefore(lastDay)) {
+                        nguoiRoiDi++;
+                        double unused = 1.0 - eff;
+                        thoiGianChuaSuDung += unused;
+                        if (ngayRoiDi == null || di.isAfter(ngayRoiDi)) ngayRoiDi = di;
+                    }
+                }
+            }
+            
+            String monthStr = String.valueOf(month);
+            
+            // BUG FIX 2: Xoa lap x... dau chuoi, chi hien 1 lan sau dau "="
+            if (nguoiVaoSau > 0) {
+                double goc = totalEffective - phatSinhThem;
+                return "*Chu thich: tien dich vu thang " + monthStr + " phat sinh them do co " + nguoiVaoSau + 
+                       " thanh vien moi vao o tinh tu ngay " + dtf.format(ngayVaoSau) + 
+                       " den ngay " + dtf.format(lastDay) + 
+                       " => He so: (x" + soLuongStr(goc) + " goc) + (x" + soLuongStr(phatSinhThem) + " phat sinh them nguoi o)" +
+                       " = x" + soLuongStr(totalEffective) + 
+                       " se duoc tinh vao cac dich vu dua tren dau nguoi.";
+            } else if (nguoiRoiDi > 0) {
+                double goc = totalEffective + thoiGianChuaSuDung;
+                return "*Chu thich: tien dich vu thang " + monthStr + " thay doi do co " + nguoiRoiDi + 
+                       " thanh vien roi di ngay " + dtf.format(ngayRoiDi) + 
+                       " => He so: (x" + soLuongStr(goc) + " goc) - (x" + soLuongStr(thoiGianChuaSuDung) + " thoi gian chua su dung)" +
+                       " = x" + soLuongStr(totalEffective) + 
+                       " se duoc tinh vao cac dich vu dua tren dau nguoi.";
+            } else if (khachVaoGiuaThang) {
+                return "*Chu thich: tien dich vu thang " + monthStr + " se tinh tu ngay " + dtf.format(ct.getNgayBatDauHD()) + 
+                       " den ngay " + dtf.format(lastDay) + " => x" + soLuongStr(totalEffective) + 
+                       " se duoc tinh vao cac dich vu dua tren dau nguoi.";
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "";
     }
 }

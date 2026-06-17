@@ -460,6 +460,26 @@ public class HopDongDAO {
         } catch (Exception e) { e.printStackTrace(); }
     }
 
+    /**
+     * Ghi nhận ngày rời đi của người ở ghép: UPDATE NgayDi thay vì DELETE.
+     * Chỉ cập nhật bản ghi còn đang hoạt động (NgayDi IS NULL).
+     * Bản ghi sau khi có NgayDi sẽ không bị xóa bởi luuNguoiOGhepVoiNgay,
+     * đảm bảo lịch sử người ở ghép được bảo toàn trong CSDL.
+     */
+    public static void ghiNgayDiNguoiOGhep(int maHopDong, int maKhachThue,
+                                             java.time.LocalDate ngayDi) {
+        String sql = "UPDATE ChiTiet_HopDong_NguoiOGhep SET NgayDi=? " +
+                     "WHERE MaHopDong=? AND MaKhachThue=? AND NgayDi IS NULL";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            if (ngayDi != null) ps.setDate(1, Date.valueOf(ngayDi));
+            else                ps.setDate(1, Date.valueOf(java.time.LocalDate.now()));
+            ps.setInt(2, maHopDong);
+            ps.setInt(3, maKhachThue);
+            ps.executeUpdate();
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
     public static void capNhatDichVuHopDong(int maHopDong, ArrayList<Integer> dsMaDichVu) {
         try (Connection conn = DBConnection.getConnection()) {
             xoaChiTietDichVu(conn, maHopDong);

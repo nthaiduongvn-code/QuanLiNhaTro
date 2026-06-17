@@ -13,10 +13,8 @@ import java.util.ArrayList;
 
 public class Panel_CS_Dien_Nuoc extends JPanel {
 
-    private static final Color DIEN_BG_EVEN = new Color(0xFFFBEB);
-    private static final Color DIEN_BG_ODD  = new Color(0xFEF3C7);
-    private static final Color NUOC_BG_EVEN = new Color(0xEFF6FF);
-    private static final Color NUOC_BG_ODD  = new Color(0xDBEAFE);
+    private static final Color DIEN_BG = new Color(0xFEF3C7); // Vàng nhạt (Amber 100) cho Điện
+    private static final Color NUOC_BG = new Color(0xDBEAFE); // Xanh nhạt (Blue 100) cho Nước
 
     private final JComboBox<String>  cbThang = new JComboBox<>();
     private final JComboBox<Integer> cbNam   = new JComboBox<>();
@@ -113,8 +111,8 @@ public class Panel_CS_Dien_Nuoc extends JPanel {
             @Override public Component getTableCellRendererComponent(JTable t, Object v, boolean s, boolean f, int r, int c) {
                 JLabel l = (JLabel) super.getTableCellRendererComponent(t, v, s, f, r, c);
                 String val = String.valueOf(v);
-                if ("Điện".equals(val)) l.setText(Theme.pillWarning("Điện"));
-                else if ("Nước".equals(val)) l.setText(Theme.pillInfo("Nước"));
+                if ("Điện".equals(val)) l.setText("<html><font color='#D97706'><b>Điện</b></font></html>");
+                else if ("Nước".equals(val)) l.setText("<html><font color='#2563EB'><b>Nước</b></font></html>");
                 else l.setText(val);
                 l.setHorizontalAlignment(SwingConstants.CENTER);
                 l.setVerticalAlignment(SwingConstants.CENTER);
@@ -386,10 +384,7 @@ public class Panel_CS_Dien_Nuoc extends JPanel {
     }
 
     private static Color getRowBg(int row) {
-        boolean isDien = (row % 2 == 0);
-        int pair = row / 2;
-        if (isDien) return pair % 2 == 0 ? DIEN_BG_EVEN : DIEN_BG_ODD;
-        else        return pair % 2 == 0 ? NUOC_BG_EVEN : NUOC_BG_ODD;
+        return (row % 2 == 0) ? DIEN_BG : NUOC_BG;
     }
 
     private static Color lighten(Color c) {

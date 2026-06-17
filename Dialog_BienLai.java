@@ -43,16 +43,16 @@ public class Dialog_BienLai extends JDialog {
             if (onClosed != null) onClosed.run();
         });
 
-        JButton btnSavePdf = Theme.warningButton("📄 Lưu PDF");
+        JButton btnSavePdf = Theme.warningButton("Lưu PDF");
         btnSavePdf.addActionListener(e -> savePdf());
 
-        JButton btnMail = Theme.primaryButton("📧 Gửi mail (kèm PDF)");
+        JButton btnMail = Theme.primaryButton("Gửi mail (kèm PDF)");
         btnMail.addActionListener(e -> sendMail());
 
         // Toggle paid
         JButton btnTogglePaid = ct.getTrangThai() != null && ct.getTrangThai().contains("Đã")
-                ? Theme.dangerButton("↩ Hủy thanh toán")
-                : Theme.successButton("✓ Đánh dấu đã thanh toán");
+                ? Theme.dangerButton("Hủy thanh toán")
+                : Theme.successButton("Đánh dấu đã thanh toán");
         btnTogglePaid.addActionListener(e -> {
             String newStatus = ct.getTrangThai() != null && ct.getTrangThai().contains("Đã")
                     ? "Chưa thanh toán" : "Đã thanh toán";

@@ -23,6 +23,9 @@ public class Panel_ChiTietPhong extends JPanel {
     private final ArrayList<ThongTinKhachThue> dsGhepChon  = new ArrayList<>();
     private final ArrayList<ThongTinKhachThue> dsGhepAvail = new ArrayList<>();
     private final LinkedHashMap<ThongTinKhachThue, DateMaskField> mapNgayVaoFields = new LinkedHashMap<>();
+    // Theo dõi người vừa bị xóa khỏi danh sách + ngày rời đi tương ứng
+    // Sẽ được ghi xuống DB khi nhấn “Lưu người ở cùng”
+    private final LinkedHashMap<ThongTinKhachThue, LocalDate> mapNgayDiGhep = new LinkedHashMap<>();
 
     // Tab Dịch vụ
     private JPanel pnlDvBody;
@@ -52,7 +55,7 @@ public class Panel_ChiTietPhong extends JPanel {
         JPanel header = new JPanel(new BorderLayout(12, 0));
         header.setOpaque(false);
 
-        JButton btnBack = Theme.secondaryButton("← Quay lại");
+        JButton btnBack = Theme.secondaryButton("<- Quay lại");
         btnBack.addActionListener(e -> { if (onBack != null) onBack.run(); });
 
         JPanel leftBox = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
@@ -104,9 +107,9 @@ public class Panel_ChiTietPhong extends JPanel {
         tabs.setFont(Theme.FONT_BASE_BOLD);
         tabs.setBackground(Color.WHITE);
 
-        tabs.addTab("👥 Khách thuê",       buildTabKhachThue());
-        tabs.addTab("🧰 Dịch vụ sử dụng",  buildTabDichVuSuDung());
-        tabs.addTab("💳 Hóa đơn",          buildTabHoaDon());
+        tabs.addTab("Khách thuê",       buildTabKhachThue());
+        tabs.addTab("Dịch vụ sử dụng",  buildTabDichVuSuDung());
+        tabs.addTab("Hóa đơn",          buildTabHoaDon());
         return tabs;
     }
 
@@ -171,6 +174,10 @@ public class Panel_ChiTietPhong extends JPanel {
                 return df;
             });
             pnlThanhVienBody.add(buildMemberCard(k, true, () -> {
+                // Hiện dialog nhập ngày rời đi (tự điền hôm nay)
+                LocalDate ngayDi = showNgayDiDialog(k.getHoTen());
+                if (ngayDi == null) return; // người dùng bấm Hủy
+                mapNgayDiGhep.put(k, ngayDi);
                 dsGhepChon.remove(k);
                 dsGhepAvail.add(k);
                 mapNgayVaoFields.remove(k);
@@ -224,8 +231,19 @@ public class Panel_ChiTietPhong extends JPanel {
         }
         pnlThanhVienBody.add(Box.createVerticalStrut(12));
 
-        JButton btnSave = Theme.primaryButton("Lưu người ở cùng");
+        JButton btnSave = Theme.primaryButton("Lưu");
         btnSave.addActionListener(e -> {
+            // Validate: NgayVao của mỗi người không được trống
+            for (ThongTinKhachThue k : dsGhepChon) {
+                DateMaskField df = mapNgayVaoFields.get(k);
+                if (df == null || df.getValue().trim().isEmpty()) {
+                    JOptionPane.showMessageDialog(Panel_ChiTietPhong.this,
+                            "Ngày vào của \"" + k.getHoTen() + "\" không được để trống.\n"
+                            + "Vui lòng nhập ngày vào cho tất cả người ở cùng.",
+                            "Thiếu ngày vào", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+            }
             ArrayList<Integer> ids = new ArrayList<>();
             ArrayList<LocalDate> ngayVaoList = new ArrayList<>();
             for (ThongTinKhachThue k : dsGhepChon) {
@@ -237,6 +255,15 @@ public class Panel_ChiTietPhong extends JPanel {
                 }
                 ngayVaoList.add(ngayVao);
             }
+            // Ghi NgayDi cho những người vừa bị xóa (TRƯỚC khi lưu danh sách còn lại)
+            // → DELETE trong luuNguoiOGhep chỉ xóa NgayDi IS NULL, nhười đã rời sẽ được giữ lại
+            for (java.util.Map.Entry<ThongTinKhachThue, LocalDate> entry : mapNgayDiGhep.entrySet()) {
+                HopDongDAO.ghiNgayDiNguoiOGhep(
+                        currentHopDong.getMaHopDong(),
+                        entry.getKey().getMaKhachThue(),
+                        entry.getValue());
+            }
+            mapNgayDiGhep.clear();
             if (HopDongDAO.capNhatNguoiOGhep(currentHopDong.getMaHopDong(), ids, ngayVaoList)) {
                 JOptionPane.showMessageDialog(Panel_ChiTietPhong.this, "Đã lưu người ở cùng.");
             } else {
@@ -378,6 +405,7 @@ public class Panel_ChiTietPhong extends JPanel {
         dsGhepChon.clear();
         dsGhepAvail.clear();
         mapNgayVaoFields.clear();
+        mapNgayDiGhep.clear(); // reset lịch sử xóa chưa lưu khi chuyển phòng
         if (currentHopDong != null) {
             java.util.Map<Integer, LocalDate> dbNgayVao =
                     HopDongDAO.getNguoiOGhepWithNgayVao(currentHopDong.getMaHopDong());
@@ -503,4 +531,78 @@ public class Panel_ChiTietPhong extends JPanel {
             return gia;
         }
     }
+
+    /**
+     * Hiển thị dialog nhập ngày rời đi của người ở ghép.
+     * Tự động điền sẵn ngày hôm nay để thuận tiện.
+     * @return LocalDate ngày rời đi, hoặc null nếu người dùng nhấn Hủy.
+     */
+    private LocalDate showNgayDiDialog(String tenKhach) {
+        java.awt.Window parent = SwingUtilities.getWindowAncestor(this);
+        JDialog dlgDi = new JDialog(parent, "Ngày rời đi", java.awt.Dialog.ModalityType.APPLICATION_MODAL);
+        dlgDi.setSize(380, 210);
+        dlgDi.setLocationRelativeTo(this);
+        dlgDi.getContentPane().setBackground(Color.WHITE);
+        dlgDi.setResizable(false);
+
+        JPanel content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBorder(new EmptyBorder(20, 24, 16, 24));
+        content.setBackground(Color.WHITE);
+
+        JLabel lblInfo = new JLabel("<html><b>" + tenKhach + "</b> sẽ rời đi vào ngày:</html>");
+        lblInfo.setFont(Theme.FONT_BASE);
+        lblInfo.setForeground(Theme.SLATE_700);
+        lblInfo.setAlignmentX(LEFT_ALIGNMENT);
+
+        DateMaskField tfNgayDi = new DateMaskField();
+        tfNgayDi.setValue(LocalDate.now().toString()); // điền sẵn ngày hôm nay
+        tfNgayDi.setFont(Theme.FONT_BASE);
+        tfNgayDi.setBackground(Color.WHITE);
+        tfNgayDi.setAlignmentX(LEFT_ALIGNMENT);
+
+        JLabel lblNote = new JLabel("<html><i><font color='#94A3B8'>Ngày rời đi sẽ được lưu vào lịch sử khi bấm \"Lưu người ở cùng\".</font></i></html>");
+        lblNote.setFont(Theme.FONT_SMALL);
+        lblNote.setAlignmentX(LEFT_ALIGNMENT);
+
+        JPanel btnRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 8, 0));
+        btnRow.setOpaque(false);
+        btnRow.setAlignmentX(LEFT_ALIGNMENT);
+        JButton btnCancel  = Theme.secondaryButton("Hủy");
+        JButton btnConfirm = Theme.dangerButton("Xác nhận rời đi");
+
+        LocalDate[] result = {null};
+        btnCancel.addActionListener(e -> dlgDi.dispose());
+        btnConfirm.addActionListener(e -> {
+            String val = tfNgayDi.getValue();
+            if (val == null || val.trim().isEmpty()) {
+                JOptionPane.showMessageDialog(dlgDi,
+                        "Vui lòng nhập ngày rời đi.", "Thiếu ngày", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            try {
+                result[0] = LocalDate.parse(val);
+                dlgDi.dispose();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dlgDi,
+                        "Ngày không hợp lệ. Vui lòng nhập đúng định dạng yyyy-MM-dd.",
+                        "Lỗi định dạng", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        btnRow.add(btnCancel);
+        btnRow.add(btnConfirm);
+
+        content.add(lblInfo);
+        content.add(Box.createVerticalStrut(10));
+        content.add(tfNgayDi);
+        content.add(Box.createVerticalStrut(6));
+        content.add(lblNote);
+        content.add(Box.createVerticalStrut(14));
+        content.add(btnRow);
+
+        dlgDi.add(content);
+        dlgDi.setVisible(true); // blocks until disposed
+        return result[0];
+    }
 }
+

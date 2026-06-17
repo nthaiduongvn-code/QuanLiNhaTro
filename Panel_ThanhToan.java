@@ -70,7 +70,7 @@ public class Panel_ThanhToan extends JPanel {
             public void changedUpdate(javax.swing.event.DocumentEvent e) { applyFilter(); }
         });
 
-        JButton btnTaoHoaDon = Theme.successButton("Tạo hóa đơn tháng");
+        JButton btnTaoHoaDon = Theme.successButton("Cập nhật hóa đơn");
         btnTaoHoaDon.addActionListener(e -> taoHoaDonTuDong());
 
         btnEmail = Theme.infoButton("Gửi mail");
@@ -224,8 +224,8 @@ public class Panel_ThanhToan extends JPanel {
     private void taoHoaDonTuDong() {
         String thang = (String) cbThangNam.getSelectedItem();
         String thangMoi = (String) JOptionPane.showInputDialog(this,
-                "Tạo hóa đơn tự động cho kỳ nào?\n(Định dạng MM-YYYY)",
-                "Tạo hóa đơn tháng", JOptionPane.PLAIN_MESSAGE,
+                "Cập nhật hóa đơn cho kỳ nào?\n(Hệ thống sẽ tạo mới nếu chưa có, hoặc cập nhật nếu đã tồn tại)\n(Định dạng MM-YYYY)",
+                "Cập nhật hóa đơn", JOptionPane.PLAIN_MESSAGE,
                 null, null, thang != null ? thang : "");
         if (thangMoi == null || !thangMoi.matches("\\d{2}-\\d{4}")) {
             if (thangMoi != null) JOptionPane.showMessageDialog(this, "Định dạng tháng không hợp lệ. Ví dụ: 06-2026");
@@ -233,7 +233,7 @@ public class Panel_ThanhToan extends JPanel {
         }
         int[] r = TongHopHoaDonDAO.taoHoaDonChoThang(thangMoi);
         // r[0]=daTao, r[1]=daCapNhat, r[2]=thieuChiSo
-        String msg = "<html><b>Kết quả tạo hóa đơn cho kỳ " + thangMoi + ":</b><br><br>"
+        String msg = "<html><b>Kết quả cập nhật hóa đơn cho kỳ " + thangMoi + ":</b><br><br>"
                 + "✅ Tạo mới: <b>" + r[0] + "</b> hóa đơn<br>"
                 + "🔄 Cập nhật lại: <b>" + r[1] + "</b> hóa đơn (giữ nguyên trạng thái thanh toán)<br>"
                 + "⚠ Bỏ qua (thiếu/sai chỉ số): <b>" + r[2] + "</b> phòng";

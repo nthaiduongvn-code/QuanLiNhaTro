@@ -194,11 +194,18 @@ public class Main extends JFrame {
 
         JPanel togglePill = new JPanel() {
             boolean hov = false;
+            Image imgOpen, imgClose;
             {
                 setPreferredSize(new Dimension(16, 56));
                 setOpaque(false);
                 setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
                 setToolTipText("Ẩn / hiện thanh điều hướng");
+                try {
+                    java.net.URL urlOpen = Main.class.getResource("icon/icon_open.png");
+                    java.net.URL urlClose = Main.class.getResource("icon/icon_close.png");
+                    if (urlOpen != null) imgOpen = new ImageIcon(urlOpen).getImage().getScaledInstance(12, 12, Image.SCALE_SMOOTH);
+                    if (urlClose != null) imgClose = new ImageIcon(urlClose).getImage().getScaledInstance(12, 12, Image.SCALE_SMOOTH);
+                } catch (Exception e) {}
                 addMouseListener(new MouseAdapter() {
                     @Override public void mouseEntered(MouseEvent e) { hov = true;  repaint(); }
                     @Override public void mouseExited (MouseEvent e) { hov = false; repaint(); }
@@ -215,13 +222,21 @@ public class Main extends JFrame {
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(hov ? Theme.TEAL_100 : Theme.SLATE_100);
                 g2.fillRoundRect(1, 0, getWidth() - 2, getHeight(), 8, 8);
-                g2.setColor(hov ? Theme.TEAL_700 : Theme.SLATE_400);
-                g2.setFont(new Font("Segoe UI", Font.BOLD, 9));
-                FontMetrics fm = g2.getFontMetrics();
-                String arrow = sidebarOpen[0] ? "⬅️" : "▶";
-                int tx = (getWidth()  - fm.stringWidth(arrow)) / 2;
-                int ty = (getHeight() + fm.getAscent() - fm.getDescent()) / 2;
-                g2.drawString(arrow, tx, ty);
+                
+                Image img = sidebarOpen[0] ? imgClose : imgOpen;
+                if (img != null) {
+                    int tx = (getWidth() - img.getWidth(null)) / 2;
+                    int ty = (getHeight() - img.getHeight(null)) / 2;
+                    g2.drawImage(img, tx, ty, null);
+                } else {
+                    g2.setColor(hov ? Theme.TEAL_700 : Theme.SLATE_400);
+                    g2.setFont(new Font("Segoe UI", Font.BOLD, 9));
+                    FontMetrics fm = g2.getFontMetrics();
+                    String arrow = sidebarOpen[0] ? "<" : ">";
+                    int tx = (getWidth()  - fm.stringWidth(arrow)) / 2;
+                    int ty = (getHeight() + fm.getAscent() - fm.getDescent()) / 2;
+                    g2.drawString(arrow, tx, ty);
+                }
                 g2.dispose();
             }
         };

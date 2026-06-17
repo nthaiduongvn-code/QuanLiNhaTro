@@ -154,13 +154,24 @@ public class EmailUtil {
 
         sb.append("<div style='padding:22px 28px 8px;'>")
           .append("<table style='width:100%;font-size:14px;color:#334155;'>")
-          .append("<tr><td style='padding:4px 0;width:120px;color:#64748B;'>Khách hàng</td>")
+          .append("<tr><td style='padding:4px 0;width:120px;color:#64748B;'>Khách thuê</td>")
           .append("<td style='padding:4px 0;font-weight:600;'>").append(safe(ct.getHoTenKhach())).append("</td></tr>");
+          
+        sb.append("<tr><td style='padding:4px 0;color:#64748B;'>Số người ở</td>")
+          .append("<td style='padding:4px 0;font-weight:600;'>").append(ct.getSoNguoi()).append("</td></tr>");
+
         if (ct.getEmailKhach() != null && !ct.getEmailKhach().isEmpty()) {
             sb.append("<tr><td style='padding:4px 0;color:#64748B;'>Email</td>")
               .append("<td style='padding:4px 0;'>").append(safe(ct.getEmailKhach())).append("</td></tr>");
         }
         sb.append("</table></div>");
+
+        String chuThich = buildChuThichText(ct);
+        if (!chuThich.isEmpty()) {
+            sb.append("<div style='padding:0 28px 8px; font-size:12px; color:#ef4444; font-style:italic;'>")
+              .append(safe(chuThich))
+              .append("</div>");
+        }
 
         sb.append("<div style='padding:8px 28px 24px;'>")
           .append("<table style='width:100%;border-collapse:collapse;font-size:14px;'>")
@@ -170,7 +181,16 @@ public class EmailUtil {
           .append(th("Thành tiền", "right"))
           .append("</tr></thead><tbody>");
 
-        sb.append(row("Tiền phòng", ct.getSoNgayO() + "/" + ct.getSoNgayTrongThang() + " ngày", vnd(ct.getTienPhong())));
+        String tienPhongDetail;
+        try {
+            int month = Integer.parseInt(ct.getThangNam().substring(0, 2));
+            tienPhongDetail = (ct.getSoNgayO() == ct.getSoNgayTrongThang()) 
+                            ? "Tháng " + month
+                            : ct.getSoNgayO() + "/" + ct.getSoNgayTrongThang() + " ngày";
+        } catch (Exception e) {
+            tienPhongDetail = ct.getSoNgayO() + "/" + ct.getSoNgayTrongThang() + " ngày";
+        }
+        sb.append(row("Tiền phòng", tienPhongDetail, vnd(ct.getTienPhong())));
         sb.append(row("Tiền điện", buildChiSoDetail(ct.getDienCu(), ct.getDienMoi(), ct.getDonGiaDien(), "kWh"), vnd(ct.getTienDien())));
         sb.append(row("Tiền nước", buildChiSoDetail(ct.getNuocCu(), ct.getNuocMoi(), ct.getDonGiaNuoc(), "m³"), vnd(ct.getTienNuoc())));
 
@@ -184,7 +204,7 @@ public class EmailUtil {
             String detail;
             if (ThongTinDichVu.THEO_NGUOI.equals(cachTinh)) {
                 detail = vnd(donGia) + (donVi == null || donVi.isEmpty() ? "" : "/" + donVi)
-                       + " × " + soLuongStr(soLuong) + " người";
+                       + " × " + soLuongStr(soLuong);
             } else {
                 detail = donVi == null || donVi.isEmpty() ? "—" : "/ " + donVi;
             }
@@ -242,5 +262,92 @@ public class EmailUtil {
     /** Hiển thị số người: bỏ phần .0 nếu là số nguyên, giữ 1 chữ số thập phân nếu lẻ. */
     private static String soLuongStr(double v) {
         return (v == Math.floor(v)) ? String.valueOf((long) v) : String.format("%.1f", v);
+    }
+
+    private static String buildChuThichText(ChiTietHoaDon ct) {
+        if (ct.getNgayBatDauHD() == null) return "";
+        try {
+            int month = Integer.parseInt(ct.getThangNam().substring(0, 2));
+            int year  = Integer.parseInt(ct.getThangNam().substring(3));
+            java.time.LocalDate firstDay = java.time.LocalDate.of(year, month, 1);
+            java.time.LocalDate lastDay = firstDay.withDayOfMonth(ct.getSoNgayTrongThang());
+            
+            boolean khachVaoGiuaThang = (ct.getNgayBatDauHD().getMonthValue() == month 
+                                         && ct.getNgayBatDauHD().getYear() == year 
+                                         && ct.getNgayBatDauHD().getDayOfMonth() > 1);
+            
+            List<Object[]> ghep = ct.getNguoiOGhepTrongThang();
+            if (!khachVaoGiuaThang && (ghep == null || ghep.isEmpty())) {
+                return "";
+            }
+            
+            java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            
+            // BUG FIX 1: Luôn tính khách chính = 1.0 (giống getEffectiveSoNguoi)
+            // để ghi chú khớp với số người thực tế được dùng tính dịch vụ
+            double totalEffective = 1.0;
+            
+            int nguoiVaoSau = 0;
+            double phatSinhThem = 0;
+            java.time.LocalDate ngayVaoSau = null;
+            
+            int nguoiRoiDi = 0;
+            double thoiGianChuaSuDung = 0;
+            java.time.LocalDate ngayRoiDi = null;
+            
+            if (ghep != null) {
+                for (Object[] row : ghep) {
+                    java.time.LocalDate vao = (java.time.LocalDate) row[0];
+                    java.time.LocalDate di = (java.time.LocalDate) row[1];
+                    
+                    java.time.LocalDate start = vao != null ? vao : firstDay;
+                    java.time.LocalDate end = di != null ? di : lastDay;
+                    if (start.isBefore(firstDay)) start = firstDay;
+                    if (end.isAfter(lastDay)) end = lastDay;
+                    
+                    long days = java.time.temporal.ChronoUnit.DAYS.between(start, end) + 1;
+                    double eff = (double) days / ct.getSoNgayTrongThang();
+                    totalEffective += eff;
+                    
+                    if (vao != null && vao.isAfter(firstDay)) {
+                        nguoiVaoSau++;
+                        phatSinhThem += eff;
+                        if (ngayVaoSau == null || vao.isAfter(ngayVaoSau)) ngayVaoSau = vao;
+                    }
+                    if (di != null && di.isBefore(lastDay)) {
+                        nguoiRoiDi++;
+                        double unused = 1.0 - eff;
+                        thoiGianChuaSuDung += unused;
+                        if (ngayRoiDi == null || di.isAfter(ngayRoiDi)) ngayRoiDi = di;
+                    }
+                }
+            }
+            
+            String monthStr = String.valueOf(month);
+            
+            if (nguoiVaoSau > 0) {
+                double goc = totalEffective - phatSinhThem;
+                return "*Chú thích: tiền dịch vụ tháng " + monthStr + " phát sinh thêm do có " + nguoiVaoSau + 
+                       " thành viên mới vào ở tính từ ngày " + dtf.format(ngayVaoSau) + 
+                       " đến ngày " + dtf.format(lastDay) + 
+                       " ⇒ Hệ số: (x" + soLuongStr(goc) + " gốc) + (x" + soLuongStr(phatSinhThem) + " phát sinh thêm người ở)" +
+                       " = x" + soLuongStr(totalEffective) + 
+                       " sẽ được tính vào các dịch vụ dựa trên đầu người.";
+            } else if (nguoiRoiDi > 0) {
+                double goc = totalEffective + thoiGianChuaSuDung;
+                return "*Chú thích: tiền dịch vụ tháng " + monthStr + " thay đổi do có " + nguoiRoiDi + 
+                       " thành viên rời đi ngày " + dtf.format(ngayRoiDi) + 
+                       " ⇒ Hệ số: (x" + soLuongStr(goc) + " gốc) - (x" + soLuongStr(thoiGianChuaSuDung) + " thời gian chưa sử dụng)" +
+                       " = x" + soLuongStr(totalEffective) + 
+                       " sẽ được tính vào các dịch vụ dựa trên đầu người.";
+            } else if (khachVaoGiuaThang) {
+                return "*Chú thích: tiền dịch vụ tháng " + monthStr + " sẽ tính từ ngày " + dtf.format(ct.getNgayBatDauHD()) + 
+                       " đến ngày " + dtf.format(lastDay) + " ⇒ x" + soLuongStr(totalEffective) + 
+                       " sẽ được tính vào các dịch vụ dựa trên đầu người.";
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "";
     }
 }

@@ -84,7 +84,7 @@ public class Panel_DichVu extends JPanel {
                     dv.getTenDichVu(),
                     String.format("%,d đ", dv.getGiaDichVu()),
                     dv.getDonVi(),
-                    dv.isTheoNguoi() ? Theme.pillInfo("Theo đầu người") : Theme.pillNeutral("Theo phòng"),
+                    dv.isTheoNguoi() ? "Theo đầu người" : "Theo phòng",
                     dv.getGhiChu() == null ? "" : dv.getGhiChu()
             });
         }
