@@ -30,10 +30,10 @@ public class AppConfig {
             try (Writer w = new FileWriter(f)) {
                 w.write("# Cấu hình gửi email — điền thông tin tài khoản Gmail vào đây\n");
                 w.write("# Cách lấy App Password: https://support.google.com/accounts/answer/185833\n");
-                w.write("email.from=nthaiduong.vn@gmail.com\n");
-                w.write("email.password=vwxn viia tynh tbdt\n");
+                w.write("email.from=your_email@gmail.com\n");
+                w.write("email.password=xxxx xxxx xxxx xxxx\n");
                 w.write("email.smtp.host=smtp.gmail.com\n");
-                w.write("email.smtp.port=465\n");
+                w.write("email.smtp.port=587\n");
             } catch (IOException e) {
                 e.printStackTrace();
             }

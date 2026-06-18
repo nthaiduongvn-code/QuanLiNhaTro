@@ -1,0 +1,10 @@
+# Thông tin cấu hình nhạy cảm
+email.properties
+
+# File biên dịch
+*.class
+out/
+
+# Cấu hình IDE (tuỳ chọn)
+.idea/
+.vscode/
