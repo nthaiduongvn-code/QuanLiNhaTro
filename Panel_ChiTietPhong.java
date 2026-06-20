@@ -397,7 +397,7 @@ public class Panel_ChiTietPhong extends JPanel {
         lblTenPhong.setText(p.getTenPhong());
         lblDienTich.setText(p.getDienTich() == null ? "—" : p.getDienTich());
         lblGiaThue.setText(formatGia(p.getGiaThue()));
-        if (p.isDangO()) lblTrangThai.setText(Theme.pillInfo("Đang thuê"));
+        if (p.isTrangThaiPhong()) lblTrangThai.setText(Theme.pillInfo("Đang thuê"));
         else             lblTrangThai.setText(Theme.pillSuccess("Trống"));
 
         currentHopDong = HopDongDAO.getHopDongHienTaiByPhong(p.getMaPhong());

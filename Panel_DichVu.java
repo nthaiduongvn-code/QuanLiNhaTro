@@ -105,9 +105,14 @@ public class Panel_DichVu extends JPanel {
         String maDV = (String) model.getValueAt(row, 0);
         String ten = (String) model.getValueAt(row, 1);
 
-        if ("Điện".equals(ten) || "Nước".equals(ten)) {
+        ThongTinDichVu dvToDelete = null;
+        for (ThongTinDichVu d : dsGoc) {
+            if (d.getMaDichVu().equals(maDV)) { dvToDelete = d; break; }
+        }
+
+        if (dvToDelete != null && dvToDelete.isLaDichVuMacDinh()) {
             JOptionPane.showMessageDialog(this,
-                    "Dịch vụ Điện/Nước là dịch vụ hệ thống, không thể xóa.",
+                    "Dịch vụ \"" + ten + "\" là dịch vụ hệ thống mặc định, không thể xóa.",
                     "Không thể xóa", JOptionPane.WARNING_MESSAGE);
             return;
         }
@@ -131,7 +136,7 @@ public class Panel_DichVu extends JPanel {
 
     private void showForm(ThongTinDichVu dv) {
         boolean isEdit = dv != null;
-        boolean isSystemDV = isEdit && ("Điện".equals(dv.getTenDichVu()) || "Nước".equals(dv.getTenDichVu()));
+        boolean isSystemDV = isEdit && dv.isLaDichVuMacDinh();
 
         JDialog dlg = new JDialog((Frame) SwingUtilities.getWindowAncestor(this),
                 isEdit ? "Sửa dịch vụ" : "Thêm dịch vụ", true);

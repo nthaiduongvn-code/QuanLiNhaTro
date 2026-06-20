@@ -10,14 +10,16 @@ public class ThongTinDichVu {
     private String donVi;
     private String ghiChu;
     private String cachTinh; // "Phong" hoặc "Nguoi"
+    private boolean laDichVuMacDinh; // Dịch vụ hệ thống (Điện/Nước)
 
-    public ThongTinDichVu(String maDichVu, String tenDichVu, int giaDichVu, String donVi, String ghiChu, String cachTinh) {
+    public ThongTinDichVu(String maDichVu, String tenDichVu, int giaDichVu, String donVi, String ghiChu, String cachTinh, boolean laDichVuMacDinh) {
         this.maDichVu = maDichVu;
         this.tenDichVu = tenDichVu;
         this.giaDichVu = giaDichVu;
         this.donVi = donVi;
         this.ghiChu = ghiChu;
         this.cachTinh = cachTinh == null ? THEO_PHONG : cachTinh;
+        this.laDichVuMacDinh = laDichVuMacDinh;
     }
 
     public ThongTinDichVu(String tenDichVu, int giaDichVu, String donVi, String ghiChu, String cachTinh) {
@@ -26,6 +28,7 @@ public class ThongTinDichVu {
         this.donVi = donVi;
         this.ghiChu = ghiChu;
         this.cachTinh = cachTinh == null ? THEO_PHONG : cachTinh;
+        this.laDichVuMacDinh = false; // Dịch vụ thêm tay không bao giờ là mặc định
     }
 
     public String getMaDichVu() { return maDichVu; }
@@ -35,6 +38,7 @@ public class ThongTinDichVu {
     public String getGhiChu() { return ghiChu; }
     public String getCachTinh() { return cachTinh; }
     public boolean isTheoNguoi() { return THEO_NGUOI.equals(cachTinh); }
+    public boolean isLaDichVuMacDinh() { return laDichVuMacDinh; }
 
     public static String nhanCachTinh(String cachTinh) {
         return THEO_NGUOI.equals(cachTinh) ? "Theo đầu người" : "Theo phòng";

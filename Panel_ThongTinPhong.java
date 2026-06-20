@@ -98,8 +98,8 @@ public class Panel_ThongTinPhong extends JPanel {
             if (!q.isEmpty() && !Theme.matchesSearch(q,
                     p.getMaPhong(), p.getTenPhong(), p.getDienTich(),
                     p.getGiaThue(), p.getTrangThaiGoc())) continue;
-            if ("Đang thuê".equals(filter) && !p.isDangO()) continue;
-            if ("Trống".equals(filter) && p.isDangO()) continue;
+            if ("Đang thuê".equals(filter) && !p.isTrangThaiPhong()) continue;
+            if ("Trống".equals(filter) && p.isTrangThaiPhong()) continue;
             filtered.add(p);
         }
         renderGrid(filtered);
@@ -144,7 +144,7 @@ public class Panel_ThongTinPhong extends JPanel {
         card.setBackground(Color.WHITE);
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
         card.setBorder(BorderFactory.createCompoundBorder(
-                new Theme.LineBorderRounded(p.isDangO() ? Theme.TEAL_300 : Theme.SLATE_200, 1, 12),
+                new Theme.LineBorderRounded(p.isTrangThaiPhong() ? Theme.TEAL_300 : Theme.SLATE_200, 1, 12),
                 new EmptyBorder(14, 16, 14, 16)
         ));
 
@@ -157,7 +157,7 @@ public class Panel_ThongTinPhong extends JPanel {
         name.setForeground(Theme.SLATE_900);
         top.add(name, BorderLayout.WEST);
 
-        JLabel pill = new JLabel(p.isDangO()
+        JLabel pill = new JLabel(p.isTrangThaiPhong()
                 ? Theme.pillInfo("Đang thuê")
                 : Theme.pillSuccess("Trống"));
         top.add(pill, BorderLayout.EAST);
@@ -226,7 +226,7 @@ public class Panel_ThongTinPhong extends JPanel {
     }
 
     private void xoaPhong(ThongTinPhong p) {
-        if (p.isDangO()) {
+        if (p.isTrangThaiPhong()) {
             JOptionPane.showMessageDialog(this,
                     "Phòng " + p.getTenPhong() + " đang có người ở, không thể xóa.\nVui lòng thanh lý hợp đồng trước.",
                     "Không thể xóa", JOptionPane.WARNING_MESSAGE);
@@ -270,7 +270,7 @@ public class Panel_ThongTinPhong extends JPanel {
 
         // Trạng thái read-only ở đầu form (chỉ khi sửa)
         if (isEdit) {
-            JLabel pillLabel = new JLabel(p.isDangO()
+            JLabel pillLabel = new JLabel(p.isTrangThaiPhong()
                     ? Theme.pillInfo("Đang thuê")
                     : Theme.pillSuccess("Trống"));
             pillLabel.setHorizontalAlignment(SwingConstants.CENTER);

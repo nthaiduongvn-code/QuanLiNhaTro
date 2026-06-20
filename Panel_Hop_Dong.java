@@ -443,7 +443,7 @@ public class Panel_Hop_Dong extends JPanel {
         ArrayList<String> phongItems = new ArrayList<>();
         ArrayList<String> phongMa = new ArrayList<>();
         for (ThongTinPhong p : dsPhong) {
-            if (!isEdit && p.isDangO()) continue;
+            if (!isEdit && p.isTrangThaiPhong()) continue;
             phongItems.add(p.getTenPhong() + " (" + formatGiaShort(p.getGiaThue()) + ")");
             phongMa.add(p.getMaPhong());
         }

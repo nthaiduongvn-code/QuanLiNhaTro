@@ -20,7 +20,8 @@ public class DichVuDAO {
                         rs.getInt("GiaDichVu"),
                         rs.getString("DonViTinh"),
                         rs.getString("GhiChu"),
-                        rs.getString("CachTinh")
+                        rs.getString("CachTinh"),
+                        rs.getBoolean("LaDichVuMacDinh")
                 ));
             }
         } catch (Exception e) {
@@ -32,7 +33,7 @@ public class DichVuDAO {
     public static ArrayList<ThongTinDichVu> getDichVuByHopDong(int maHopDong) {
         ArrayList<ThongTinDichVu> ds = new ArrayList<>();
         String sql =
-            "SELECT dv.MaDichVu, dv.TenDichVu, dv.GiaDichVu, dv.DonViTinh, dv.GhiChu, dv.CachTinh " +
+            "SELECT dv.MaDichVu, dv.TenDichVu, dv.GiaDichVu, dv.DonViTinh, dv.GhiChu, dv.CachTinh, dv.LaDichVuMacDinh " +
             "FROM ChiTiet_HopDong_DichVu ctdv " +
             "JOIN DichVu dv ON ctdv.MaDichVu = dv.MaDichVu " +
             "WHERE ctdv.MaHopDong = ?";
@@ -47,7 +48,8 @@ public class DichVuDAO {
                         rs.getInt("GiaDichVu"),
                         rs.getString("DonViTinh"),
                         rs.getString("GhiChu"),
-                        rs.getString("CachTinh")
+                        rs.getString("CachTinh"),
+                        rs.getBoolean("LaDichVuMacDinh")
                 ));
             }
         } catch (Exception e) {

@@ -3,22 +3,12 @@ package QuanLiNhaTro;
 import java.io.*;
 import java.util.Properties;
 
-/**
- * Đọc cấu hình email từ file email.properties (cùng thư mục với jar/class).
- * Nếu file không tồn tại → tự tạo file mẫu để user điền vào.
- *
- * Nội dung file email.properties:
- *   email.from=your_email@gmail.com
- *   email.password=xxxx xxxx xxxx xxxx
- *   email.smtp.host=smtp.gmail.com
- *   email.smtp.port=587
- */
+
 public class AppConfig {
 
     private static final String FILE_NAME = "email.properties";
     private static Properties cache = null;
 
-    /** Xóa cache để đọc lại file email.properties lần sau. */
     public static void reload() { cache = null; }
 
     public static Properties load() {
@@ -28,7 +18,7 @@ public class AppConfig {
         if (!f.exists()) {
             // Tạo file mẫu
             try (Writer w = new FileWriter(f)) {
-                w.write("# Cấu hình gửi email — điền thông tin tài khoản Gmail vào đây\n");
+                w.write("# Cấu hình gửi email — điền thông tin tài khoản Gmail vào dưới đây\n");
                 w.write("# Cách lấy App Password: https://support.google.com/accounts/answer/185833\n");
                 w.write("email.from=your_email@gmail.com\n");
                 w.write("email.password=xxxx xxxx xxxx xxxx\n");
